@@ -1,0 +1,7 @@
+rootProject.name = 'notiflow'
+
+include 'common'
+include 'user-auth-service'
+include 'order-coupon-service'
+include 'notification-service'
+include 'realtime-gateway-service'
