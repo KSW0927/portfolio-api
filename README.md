@@ -1,83 +1,134 @@
-<h1 align="center">👋4년차 Java 개발자 김석원입니다.</h1>
-<div align= "center">
-    <h2 align="center" style="border-bottom: 1px solid #d8dee4; color: #282d33;">🛠️Tech Stacks</h2><br> 
-    <div style="margin: 0 auto; align="center"> <img src="https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=Git&logoColor=white">
-          <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=HTML5&logoColor=white">
-          <img src="https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=Java&logoColor=white">
-          <img src="https://img.shields.io/badge/Javascript-F7DF1E?style=for-the-badge&logo=Javascript&logoColor=white">
-          <br/><img src="https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=MariaDB&logoColor=white">
-          <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=React&logoColor=white">
-          <img src="https://img.shields.io/badge/Spring-6DB33F?style=for-the-badge&logo=Spring&logoColor=white">
-    </div>
-</div>
+# Realtime Order & Notification Platform
 
-<h3 align="center">Spring Boot + React + JPA를 활용한 리디(RIDI) 클론코딩 토이 프로젝트입니다.</h3>
+한정 수량 상품에 대량 주문이 몰릴 때 발생하는 **재고 동시성 문제**를 해결하고, 처리 결과를 **실시간으로 사용자에게 알리는** 백엔드 시스템입니다. 단일 락 구현을 넘어, 락 전략별 트레이드오프를 실측 비교하고 MSA 환경에서의 트랜잭션·통신 패턴을 실험하는 것을 목표로 합니다.
 
-<br><br>
+---
 
-<h3 align="left">프로젝트 목표 및 개발 중점 사항</h3><br>
-<p align="left">
-    1. Back-end로는 서비스 기업의 표준인 <strong>Spring Boot</strong> 와 <strong>JPA</strong>를 활용하여 <strong>RESTful API</strong> 설계 및 ORM 기반의 개발 방식을 숙련하는 데 집중.<br>
-    2. Front-end로는 React를 통해 컴포넌트 기반 UI 개발과 SPA 환경에서의 비동기 통신 경험.
-</p><br>
+## 주요 기능
 
-<h3 align="left">개선 사항</h3><br>
-<p align="left">
-    1. 기존 코드의 리팩토링 및 보완(상시)<br>
-    2. Swagger 연동(2025.10.25 완료)<br>
-    3. 회원가입 및 Docker + Redis + JWT 를 활용한 로그인 및 로그아웃 기능(10.26 ~ 11.05 완료(기능 보완중))<br>
-    4. 콘텐별 업로드 경로 분류 처리<br>
-    5. 결제 모듈 적용(예정)
-</p><br>
+- **동시성 제어 비교**: 락 없음 / Pessimistic Lock / Optimistic Lock / Redis 분산락(Redisson) 4가지 모드를 실시간으로 전환하며 오버셀 발생 여부와 처리 성능을 비교
+- **실시간 처리 현황 대시보드**: N건 동시 주문 요청 → 처리 결과가 WebSocket으로 실시간 반영되는 그리드 UI
+- **이벤트 기반 알림 발송**: 주문 처리 결과를 Kafka 이벤트로 전파, 이메일 및 인앱 실시간 알림으로 발송
+- **발송 이력 및 통계 조회**
 
-<h3 align="left">1. 전역 예외 처리 구현</h3><br>
-이 프로젝트의 전역 예외 처리 구조는 저의 공공 SI 프로젝트 구축 및 운영 경험에서 비롯된 필요성에 의해 구현하였습니다.<br><br>
+---
 
-<strong>문제점:</strong><br>
-다수의 개발자가 참여하는 SI 환경에서 개별적인 try-catch 블록 사용은 예외 처리 방식의 일관성을 크게 저하시켰습니다.<br><br>
-이로 인해 개발 및 유지보수 과정에서 오류 디버깅 시간이 지연되고, 코드의 응집성이 저하되어 시스템 파악 및 수정에 어려움이 있었습니다.<br><br>
+## 아키텍처
 
-<strong>해결방안:</strong><br>
-'예외 처리도 공통화 했으면 좋겠다' 라는 생각에서 시작해 설계하였으며 유지보수성과 확장성을 최우선으로 고려하여<br><br>
-핸들러를 사용한 전역 예외 처리를 토이 프로젝트의 핵심 설계 목표 중 하나로 설정했습니다.
+```
+Client
+  │  HTTPS
+  ▼
+Nginx (리버스 프록시, TLS 종료)
+  │
+  ├─ REST ──▶ API Gateway ──▶ Order Service / User Service
+  │
+  └─ WebSocket ──▶ Realtime Gateway Service
 
-<br><br>
+────────── 내부 이벤트 흐름 ──────────
 
-<h3 align="left">2. API 공통 응답 구조</h3><br>
-전역 예외 처리 도입 후, API 응답에 대한 일관성을 확보하는 것이 다음 목표였습니다.<br><br>
+Order Service
+  - 재고 차감 (락 모드에 따라 동시성 제어)
+  - 주문 결과 DB 저장 + Outbox 테이블 기록
+        │
+        ▼
+     Kafka (order.events)
+        │
+        ▼
+Notification Service
+  - 이벤트 소비, 발송 이력 저장
+  - Redis Pub/Sub으로 처리 결과 publish
+        │
+        ▼
+Realtime Gateway Service
+  - Redis Pub/Sub 구독 → 해당 클라이언트에 WebSocket 전달
+```
 
-<strong>문제점:</strong><br>
-SI 프로젝트에서 API를 개발할 때, 응답 데이터 필드가 API마다 제각각이었습니다.<br><br>
-예를 들어, 어떤 API는 핵심 데이터를 response.result로 반환했지만, 다른 API는 response.data로 반환하는 등 속성명 자체가 통일되지 않았습니다.<br><br>
-이로 인해 클라이언트 개발 시 API를 호출할 때마다 응답 구조를 확인하고 그에 맞게 수정해야 하는 불편함과 비효율성이 발생했습니다.<br><br>
+### 서비스 구성
 
-<strong>해결방안:</strong><br>
-응답 구조 내의 code와 message 필드는 Enum을 활용하여 관리했습니다. <br>
-이로써 클라이언트 개발 시 예측 가능한 통일된 응답 구조를 확보하여 프론트엔드 연동 효율성을 극대화했습니다.
+| 서비스 | 책임 |
+|---|---|
+| Order Service | 주문 생성, 재고 차감/동시성 제어 |
+| Notification Service | 이벤트 소비, 채널 라우팅, 발송 이력 관리 |
+| Realtime Gateway Service | WebSocket 연결 관리, 실시간 푸시 |
+| User Service | 인증, 유저/알림 설정 관리 |
 
-<br><br>
+---
 
-<h3 align="left">3. Docker + Redis + JWT를 활용한 로그인/로그아웃 처리</h3><br>
-이 구조는 기존에 느꼈던 서버 기반 세션의 확장성 및 성능 한계를 극복하고, 서비스 환경에 적합한 상태 비저장 기반 인증 시스템을 구축하고자 설계했습니다.<br><br>
+## 기술 스택
 
-<strong>문제점:</strong><br>
-서버 기반 세션 방식은 로그인 시 빈번한 DB 접근 등으로 인증 처리 시간이 오래 걸리고, 서버 부하가 커서 확장에 불리했습니다.<br><br>
+| 분류 | 사용 기술 |
+|---|---|
+| Language / Framework | Java, Spring Boot |
+| 통신 | REST, WebSocket |
+| 메시징 | Kafka |
+| 캐시 / 분산락 | Redis, Redisson |
+| 영속성 | JPA (Order Service), MyBatis (Notification Service 조회/통계) |
+| 인프라 | Docker, Oracle Cloud (ARM), Nginx, Jenkins |
+| 부하테스트 | k6 |
 
-<strong>해결방안:</strong><br>
-JWT를 도입하면서 발생할 수 있는 세션 무효화 문제(로그아웃)를 해결하고 성능을 최적화하기 위해 Redis를 통합 설계했습니다.<br><br>
+---
 
-Refresh Token 관리 : Refresh Token은 DB가 아닌 Redis에 저장했습니다. 이 구조를 통해 기존 DB 기반 세션 방식에서 발생할 수 있는 성능 병목 현상을 미연에 방지하고자 했습니다.<br><br>
+## 핵심 설계 결정
 
-로그아웃 처리: 프론트엔드가 세션 스토리지를 비우고 로그아웃을 요청하면, 백엔드에서는 RedisTemplate을 활용하여 Redis에 저장된 해당 Refresh Token을 명시적으로 삭제했습니다.<br><br>
+### 1. 왜 락을 4가지 방식으로 비교했는가
+동시성 제어는 "정답 하나"가 아니라 트래픽 패턴에 따른 트레이드오프 문제입니다. 락 없이 발생하는 오버셀 현상을 먼저 재현한 뒤, DB 락 두 종류와 분산락을 같은 시나리오에 적용해 정확성·응답시간·처리량 차이를 직접 비교했습니다.
 
-Docker 통합: 개인 프로젝트이지만 실제 서비스 환경의 유연성과 확장성 기반을 마련하기 위해 Redis 서버는 Docker를 활용하여 컨테이너 환경에서 분리 구동했습니다.
+### 2. 왜 Outbox 패턴을 도입했는가
+"DB 커밋"과 "Kafka 이벤트 발행"을 별개 작업으로 처리하면 두 작업 사이의 실패로 데이터 정합성이 깨지는 dual write 문제가 발생합니다. 이벤트를 로컬 트랜잭션 안에서 Outbox 테이블에 먼저 기록하고, 별도 프로세스가 이를 읽어 발행하는 방식으로 원자성을 보장했습니다.
 
+### 3. 왜 Redis를 여러 역할로 사용했는가
+Pub/Sub(웹소켓 브로드캐스트), 커넥션 레지스트리, 멱등성 체크(Kafka 중복 소비 방지), Rate Limit, 분산락까지 — 하나의 인메모리 스토어가 서로 다른 문제를 해결하는 데 어떻게 쓰이는지 보여주고자 했습니다.
 
+### 4. 왜 JPA와 MyBatis를 함께 사용했는가
+트랜잭션/락 제어가 핵심인 도메인(Order Service)은 JPA의 `@Version`, `@Lock` 등 표준화된 기능을 활용하고, 복잡한 조회·통계가 중심인 도메인(Notification Service)은 MyBatis로 쿼리를 직접 제어하는 방식을 택했습니다.
 
+### 5. 왜 서비스별 DB를 완전히 분리하지 않았는가
+제한된 인프라 자원 안에서, 물리적으로는 하나의 DB 컨테이너를 사용하되 서비스별로 스키마와 접근 계정을 분리했습니다. 이를 통해 자원을 아끼면서도 서비스 간 데이터 접근 경계를 강제할 수 있었습니다.
 
+---
 
+## 실행 방법
 
+```bash
+git clone <repo-url>
+cd <repo-name>
 
-    
-    
-    
+# 전체 스택 실행 (Kafka, Redis, DB, 서비스 전부)
+docker-compose up -d
+
+# 개별 서비스 로컬 실행 시
+./gradlew :order-service:bootRun
+```
+
+> 환경 변수 및 상세 설정은 `docs/setup.md` 참고 (작성 예정)
+
+---
+
+## 성능 테스트 결과
+
+> 구현 완료 후 k6 부하테스트 결과로 채울 예정
+
+| 시나리오 | 성공 | 실패(품절) | 최종 재고 | 비고 |
+|---|---|---|---|---|
+| 락 없음 | - | - | - | 오버셀 발생 여부 |
+| Pessimistic Lock | - | - | - | |
+| Optimistic Lock | - | - | - | 재시도 횟수 포함 |
+| Redis 분산락 | - | - | - | |
+
+---
+
+## 트러블슈팅
+
+> 개발 중 겪은 문제와 해결 과정을 진행하면서 기록
+
+- (예시) Kafka consumer lag 발생 원인 분석 및 해결
+- (예시) ARM64 환경에서의 Docker 이미지 빌드 이슈
+
+---
+
+## 향후 개선 방향
+
+- API Gateway 도입 검토
+- Saga 패턴 적용 (Order/Coupon 서비스 완전 분리 시)
+- gRPC ↔ REST 성능 비교 (내부 서비스 간 통신 구간)
