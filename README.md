@@ -1,83 +1,225 @@
-<h1 align="center">👋4년차 Java 개발자 김석원입니다.</h1>
-<div align= "center">
-    <h2 align="center" style="border-bottom: 1px solid #d8dee4; color: #282d33;">🛠️Tech Stacks</h2><br> 
-    <div style="margin: 0 auto; align="center"> <img src="https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=Git&logoColor=white">
-          <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=HTML5&logoColor=white">
-          <img src="https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=Java&logoColor=white">
-          <img src="https://img.shields.io/badge/Javascript-F7DF1E?style=for-the-badge&logo=Javascript&logoColor=white">
-          <br/><img src="https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=MariaDB&logoColor=white">
-          <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=React&logoColor=white">
-          <img src="https://img.shields.io/badge/Spring-6DB33F?style=for-the-badge&logo=Spring&logoColor=white">
-    </div>
-</div>
+# notiflow
 
-<h3 align="center">Spring Boot + React + JPA를 활용한 리디(RIDI) 클론코딩 토이 프로젝트입니다.</h3>
+Kafka 기반 이벤트 처리와 Pessimistic Lock 동시성 제어를 직접 구현/검증해보기 위해 만든 MSA 포트폴리오 프로젝트입니다.
 
-<br><br>
+"동시에 몰리는 주문에서 재고가 왜 깨지는지", "그걸 막으면 무엇이 달라지는지", "처리 결과를 실시간으로 어떻게 전달하는지"를 최소 구성으로 직접 만들어서 눈으로 확인하는 데 초점을 맞췄습니다.
 
-<h3 align="left">프로젝트 목표 및 개발 중점 사항</h3><br>
-<p align="left">
-    1. Back-end로는 서비스 기업의 표준인 <strong>Spring Boot</strong> 와 <strong>JPA</strong>를 활용하여 <strong>RESTful API</strong> 설계 및 ORM 기반의 개발 방식을 숙련하는 데 집중.<br>
-    2. Front-end로는 React를 통해 컴포넌트 기반 UI 개발과 SPA 환경에서의 비동기 통신 경험.
-</p><br>
+## 데모 시나리오
 
-<h3 align="left">개선 사항</h3><br>
-<p align="left">
-    1. 기존 코드의 리팩토링 및 보완(상시)<br>
-    2. Swagger 연동(2025.10.25 완료)<br>
-    3. 회원가입 및 Docker + Redis + JWT 를 활용한 로그인 및 로그아웃 기능(10.26 ~ 11.05 완료(기능 보완중))<br>
-    4. 콘텐별 업로드 경로 분류 처리<br>
-    5. 결제 모듈 적용(예정)
-</p><br>
+1. 프론트에서 100/500/1000건 규모의 동시 주문을 시뮬레이션으로 쏩니다.
+2. **Pessimistic Lock 적용/미적용**을 토글해서 같은 부하로 두 번 돌려봅니다.
+   - 적용: 재고 행에 락을 걸어 순차 처리 → 예상 재고와 실제 재고가 항상 일치
+   - 미적용: 락 없이 조회 후 차감 → 동시 요청이 겹치면서 lost update(오버셀) 재현
+3. 처리된 주문은 Kafka를 거쳐 알림으로 가공되고, WebSocket(STOMP)으로 화면에 실시간으로 꽂힙니다.
 
-<h3 align="left">1. 전역 예외 처리 구현</h3><br>
-이 프로젝트의 전역 예외 처리 구조는 저의 공공 SI 프로젝트 구축 및 운영 경험에서 비롯된 필요성에 의해 구현하였습니다.<br><br>
+## 아키텍처
 
-<strong>문제점:</strong><br>
-다수의 개발자가 참여하는 SI 환경에서 개별적인 try-catch 블록 사용은 예외 처리 방식의 일관성을 크게 저하시켰습니다.<br><br>
-이로 인해 개발 및 유지보수 과정에서 오류 디버깅 시간이 지연되고, 코드의 응집성이 저하되어 시스템 파악 및 수정에 어려움이 있었습니다.<br><br>
+```mermaid
+flowchart LR
+    FE["Frontend (React)"]
 
-<strong>해결방안:</strong><br>
-'예외 처리도 공통화 했으면 좋겠다' 라는 생각에서 시작해 설계하였으며 유지보수성과 확장성을 최우선으로 고려하여<br><br>
-핸들러를 사용한 전역 예외 처리를 토이 프로젝트의 핵심 설계 목표 중 하나로 설정했습니다.
+    subgraph Services
+        AUTH["user-auth-service :8081"]
+        ORDER["order-coupon-service :8082"]
+        NOTI["notification-service :8083"]
+        GW["realtime-gateway-service :8084"]
+    end
 
-<br><br>
+    REDIS[(Redis)]
+    KAFKA{{Kafka}}
 
-<h3 align="left">2. API 공통 응답 구조</h3><br>
-전역 예외 처리 도입 후, API 응답에 대한 일관성을 확보하는 것이 다음 목표였습니다.<br><br>
+    UDB[(user_db)]
+    ODB[(order_db)]
+    NDB[(notify_db)]
 
-<strong>문제점:</strong><br>
-SI 프로젝트에서 API를 개발할 때, 응답 데이터 필드가 API마다 제각각이었습니다.<br><br>
-예를 들어, 어떤 API는 핵심 데이터를 response.result로 반환했지만, 다른 API는 response.data로 반환하는 등 속성명 자체가 통일되지 않았습니다.<br><br>
-이로 인해 클라이언트 개발 시 API를 호출할 때마다 응답 구조를 확인하고 그에 맞게 수정해야 하는 불편함과 비효율성이 발생했습니다.<br><br>
+    FE -- "REST: 로그인/회원가입" --> AUTH
+    FE -- "REST: 주문/상품조회" --> ORDER
+    FE -- "WebSocket(STOMP) 구독" --> GW
 
-<strong>해결방안:</strong><br>
-응답 구조 내의 code와 message 필드는 Enum을 활용하여 관리했습니다. <br>
-이로써 클라이언트 개발 시 예측 가능한 통일된 응답 구조를 확보하여 프론트엔드 연동 효율성을 극대화했습니다.
+    AUTH --> UDB
+    AUTH -- "Refresh Token" --> REDIS
+    ORDER --> ODB
+    NOTI --> NDB
 
-<br><br>
+    ORDER -- "order-events 발행\n(주문 처리 후 커밋 시점)" --> KAFKA
+    KAFKA -- "order-events 구독" --> NOTI
+    NOTI -- "notification-events 발행\n(알림 저장 후)" --> KAFKA
+    KAFKA -- "notification-events 구독" --> GW
+    GW -- "STOMP /topic/notifications" --> FE
+```
 
-<h3 align="left">3. Docker + Redis + JWT를 활용한 로그인/로그아웃 처리</h3><br>
-이 구조는 기존에 느꼈던 서버 기반 세션의 확장성 및 성능 한계를 극복하고, 서비스 환경에 적합한 상태 비저장 기반 인증 시스템을 구축하고자 설계했습니다.<br><br>
+같은 JWT(`jwt.secret` 공유)를 order-coupon-service가 그대로 검증하는 방식으로 인증을 최소 구성했고, 서비스 간 직접 호출 대신 Kafka로 결합도를 낮췄습니다. DB는 서비스별로 분리(`user_db` / `order_db` / `notify_db`)해서 데이터 소유권을 서비스 안에 가둬뒀습니다.
 
-<strong>문제점:</strong><br>
-서버 기반 세션 방식은 로그인 시 빈번한 DB 접근 등으로 인증 처리 시간이 오래 걸리고, 서버 부하가 커서 확장에 불리했습니다.<br><br>
+## 모듈 구성
 
-<strong>해결방안:</strong><br>
-JWT를 도입하면서 발생할 수 있는 세션 무효화 문제(로그아웃)를 해결하고 성능을 최적화하기 위해 Redis를 통합 설계했습니다.<br><br>
+Gradle 멀티모듈이며, 서비스 간 공통 코드는 `common`에 모아두고 각 서비스가 이를 의존합니다.
 
-Refresh Token 관리 : Refresh Token은 DB가 아닌 Redis에 저장했습니다. 이 구조를 통해 기존 DB 기반 세션 방식에서 발생할 수 있는 성능 병목 현상을 미연에 방지하고자 했습니다.<br><br>
+```
+notiflow/
+├── common/                    # 서비스 전체가 공유하는 코드
+├── user-auth-service/         # 회원가입/로그인/로그아웃 (:8081)
+├── order-coupon-service/      # 주문 처리 + Pessimistic Lock 데모 (:8082)
+├── notification-service/      # Kafka 소비 → 알림 가공/저장 (:8083)
+├── realtime-gateway-service/  # Kafka 소비 → WebSocket 브로드캐스트 (:8084)
+└── docker-compose.yml         # 로컬 개발용 Kafka + Redis
+```
 
-로그아웃 처리: 프론트엔드가 세션 스토리지를 비우고 로그아웃을 요청하면, 백엔드에서는 RedisTemplate을 활용하여 Redis에 저장된 해당 Refresh Token을 명시적으로 삭제했습니다.<br><br>
+### common — 공유 모듈
 
-Docker 통합: 개인 프로젝트이지만 실제 서비스 환경의 유연성과 확장성 기반을 마련하기 위해 Redis 서버는 Docker를 활용하여 컨테이너 환경에서 분리 구동했습니다.
+| 클래스 | 역할 |
+|---|---|
+| `security.jwt.JwtTokenProvider` | JWT 발급/검증. `user-auth-service`가 발급하고, `order-coupon-service`는 같은 secret으로 검증만 함(재발급 없음) |
+| `security.jwt.JwtAuthenticationFilter` | `Authorization: Bearer` 헤더를 읽어 SecurityContext에 인증 정보를 채우는 필터. 각 서비스의 `SecurityConfig`가 직접 등록 |
+| `security.config.CommonSecurityConfig` | 자체 인증 로직이 없는 서비스(notification, gateway)용 기본 Security 설정(permitAll + CORS). 자체 `SecurityConfig`를 갖는 서비스(user-auth, order-coupon)는 컴포넌트 스캔에서 이 클래스를 제외 |
+| `response.ApiResponse` / `ResponseResult` | `{ code, message, data }` 형태로 통일한 공통 응답 포맷. 응답 코드/메시지는 Enum(`ResponseResult`)으로 관리 |
+| `handler.RespExcpHandler` | `@RestControllerAdvice(basePackages = "com.seokwon.notiflow")`로 전체 서비스의 예외를 한 곳에서 `ApiResponse` 형태로 변환 |
+| `exception.BusinessException` / `NotFoundException` | 도메인 예외. `RespExcpHandler`가 이걸 받아 적절한 HTTP 상태로 변환 |
+| `kafka.KafkaTopics` | Kafka 토픽 이름 상수(`order-events`, `notification-events`). Producer/Consumer가 문자열을 직접 들고 있지 않고 여기서 공유 |
 
+각 서비스는 `@ComponentScan(basePackages = "com.seokwon.notiflow")`로 `common`의 컴포넌트를 그대로 끌어와 씁니다. 대신 서비스마다 필요 없는 공용 Bean(예: 자체 Security 설정이 있는 서비스에서 `CommonSecurityConfig`)은 `excludeFilters`로 명시적으로 제외합니다.
 
+### user-auth-service — 인증
 
+```
+userauth/
+├── UserController        POST /api/users/signUp, /login, /logout/{userNo}
+├── UserService            회원가입/로그인/로그아웃 비즈니스 로직
+├── UserEntity              users 테이블
+├── UserRepository
+├── config/SecurityConfig   signUp·login만 permitAll, 나머지는 JWT 인증 필요
+├── config/RedisConfig      Lettuce 기반 StringRedisTemplate
+├── redis/RedisService      Refresh Token 저장/조회/삭제 (key: refresh:{userId})
+└── dto/                    LoginRequestDTO, LoginResponseDTO, SignUpRequestDTO, SignUpResponseDTO
+```
 
+로그인 성공 시 `JwtTokenProvider`로 Access/Refresh Token을 발급하고, Refresh Token은 DB가 아닌 **Redis**에 저장합니다(세션 조회 병목 회피, 로그아웃 시 즉시 무효화 가능). DB는 `user_db`.
 
+### order-coupon-service — 주문 + 동시성 데모
 
+```
+order/
+├── OrderController                     GET /api/orders/products, POST /api/orders, POST /api/orders/reset
+├── service/OrderService                 주문 처리 + Kafka 이벤트 발행
+├── service/ProductService               상품/재고 목록 조회
+├── entity/ProductEntity                 상품 모델(예: Galaxy Z Flip8)
+├── entity/ProductDetailEntity           실제 판매 단위(SKU) - 용량+색상 조합별 재고. 락 대상
+├── entity/CustomerEntity                시뮬레이션용 테스트 구매자 풀(2,000명)
+├── entity/OrderEntity                   주문 처리 이력(성공/품절 모두 기록)
+├── repository/ProductDetailRepository   findByIdForUpdate (PESSIMISTIC_WRITE)
+├── event/OrderPlacedEvent               주문 처리 결과 이벤트(record)
+├── event/OrderEventPublisher            @TransactionalEventListener(AFTER_COMMIT)로 Kafka 발행
+├── seed/ProductSeeder, TestBuyerSeeder   상품/재고, 테스트 구매자 2,000명 시드
+└── config/SecurityConfig                 상품 목록(GET)만 공개, 주문/초기화는 JWT 인증 필요
+```
 
-    
-    
-    
+**Pessimistic Lock 스위치** (`OrderService.placeOrder(detailId, buyerUserNo, useLock)`)
+
+```java
+ProductDetailEntity detail = (useLock
+        ? productDetailRepository.findByIdForUpdate(detailId)   // PESSIMISTIC_WRITE, 순차 처리
+        : productDetailRepository.findById(detailId))            // 락 없음, 동시 요청 시 lost update 재현
+        .orElseThrow(...);
+```
+
+두 경로 모두 동일한 인위적 지연(`Thread.sleep(40ms)`)을 거치게 해서, "락이 있어서 느린 것"이 아니라 "같은 조건에서 락 유무 자체가 결과를 가른다"를 공정하게 비교할 수 있게 했습니다.
+
+**이벤트 발행은 `ApplicationEventPublisher` → `@TransactionalEventListener(AFTER_COMMIT)`을 거칩니다.** `OrderService`가 트랜잭션 안에서 곧바로 `KafkaTemplate`을 호출하면, DB 트랜잭션이 롤백되더라도 이미 Kafka로 나간 메시지는 취소할 수 없는 **dual-write 문제**가 생깁니다. 그래서 이벤트는 트랜잭션 커밋 이후에만 실제로 Kafka에 발행되도록 분리했습니다.
+
+DB는 `order_db`.
+
+### notification-service — 알림 가공/저장
+
+```
+notification/
+├── consumer/OrderEventConsumer          order-events 구독 → 알림 문구 생성 → DB 저장 → notification-events 발행
+├── entity/NotificationEntity            notify 테이블(orderId, category, message, isRead, createdAt)
+├── repository/NotificationRepository
+└── event/
+    ├── OrderPlacedEvent                  order-coupon-service 이벤트의 자체 사본
+    ├── OrderStatus                       위와 동일한 이유로 자체 사본
+    └── NotificationPublishedEvent        저장 완료된(표시용) 알림 이벤트
+```
+
+order-coupon-service의 이벤트 클래스를 그대로 가져다 쓰지 않고, **필드 구조만 동일한 별도 클래스를 자체적으로 보유**합니다. 서비스 간에 클래스를 공유하면 한쪽이 필드를 바꿀 때 다른 쪽이 컴파일 타임에 깨지지 않고 런타임에 조용히 역직렬화 실패하는 결합이 생기기 때문입니다. Kafka 메시지도 `spring.json.add.type.headers=false`로 producer 클래스의 풀패키지명을 헤더에 싣지 않고, consumer 쪽에서 `spring.json.value.default.type`으로 자기 소유 클래스에 고정 매핑합니다.
+
+DB 저장이 끝나면 같은 메서드 안에서 바로 `notification-events`를 발행합니다(`NotificationRepository.save()`가 Spring Data JPA 자체 트랜잭션으로 즉시 커밋되므로, order-coupon-service 때와 달리 별도의 AFTER_COMMIT 처리가 필요 없습니다). DB는 `notify_db`.
+
+### realtime-gateway-service — 실시간 브로드캐스트
+
+```
+gateway/
+├── config/WebSocketConfig               STOMP 엔드포인트(/ws, SockJS) + 메시지 브로커(/topic)
+├── consumer/NotificationEventConsumer   notification-events 구독 → /topic/notifications로 즉시 브로드캐스트
+└── event/NotificationPublishedEvent     notification-service 이벤트의 자체 사본
+```
+
+가공/판단 로직 없이 받은 그대로 중계만 합니다. 별도 REST 트리거 대신 **Kafka를 직접 구독**하게 해서 notification-service와 REST로 얽히지 않도록 했고, 둘 중 하나가 잠깐 죽어도 Kafka가 메시지를 들고 있다가 재연결 시 이어받습니다.
+
+## 실시간 알림 파이프라인 (전체 흐름)
+
+```
+1. 프론트  → POST /api/orders  (order-coupon-service)
+2. OrderService.placeOrder()
+     - Pessimistic Lock 적용/미적용 분기로 재고 차감
+     - OrderEntity 저장
+     - ApplicationEventPublisher.publishEvent(OrderPlacedEvent)   ← 트랜잭션 안, 아직 Kafka로 안 나감
+3. 트랜잭션 커밋 완료
+     - OrderEventPublisher(@TransactionalEventListener AFTER_COMMIT)가 그제서야 Kafka "order-events"로 발행
+4. notification-service: OrderEventConsumer가 order-events 구독
+     - 상태(성공/품절)에 맞는 알림 문구 생성
+     - NotificationEntity 저장 (notify_db)
+     - Kafka "notification-events"로 재발행
+5. realtime-gateway-service: NotificationEventConsumer가 notification-events 구독
+     - SimpMessagingTemplate으로 "/topic/notifications" 브로드캐스트
+6. 프론트: STOMP 구독 중인 notificationStore가 메시지 수신 → 알림 위젯에 실시간 반영
+```
+
+## 로컬 실행
+
+### 1. 인프라 (Kafka + Redis)
+
+```bash
+cd backend
+docker compose up -d
+docker compose ps
+```
+
+### 2. 데이터베이스
+
+서비스별로 DB를 분리해서 씁니다. 아직 없다면 먼저 생성합니다.
+
+```sql
+CREATE DATABASE user_db;
+CREATE DATABASE order_db;
+CREATE DATABASE notify_db;
+```
+
+각 서비스는 `DB_URL` 환경변수로 자신의 DB를 가리키게 되어 있습니다(설정 안 하면 기본값 `devdb`로 떨어짐).
+
+| 서비스 | 환경변수 예시 |
+|---|---|
+| user-auth-service | `DB_URL=jdbc:postgresql://<host>:5432/user_db` |
+| order-coupon-service | `DB_URL=jdbc:postgresql://<host>:5432/order_db` |
+| notification-service | `DB_URL=jdbc:postgresql://<host>:5432/notify_db` |
+| realtime-gateway-service | 엔티티가 없어 필수는 아니지만, datasource 설정 자체는 붙어있어 접속 가능한 DB 지정 필요 |
+
+공통으로 필요한 환경변수: `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`(HS256 요구사항상 **32자 이상** 필수 - 짧으면 `WeakKeyException`으로 기동 실패).
+
+### 3. 서비스 기동 순서
+
+Kafka/Redis → user-auth-service → order-coupon-service → notification-service → realtime-gateway-service 순으로 띄우는 걸 권장합니다(주문/알림 파이프라인이 서로를 필요로 하므로).
+
+| 서비스 | 포트 |
+|---|---|
+| user-auth-service | 8081 |
+| order-coupon-service | 8082 |
+| notification-service | 8083 |
+| realtime-gateway-service | 8084 |
+
+## 기술 스택
+
+**Backend**: Java 21, Spring Boot 3.3.7, Spring Data JPA, Spring Security, Spring Kafka, Spring WebSocket(STOMP), Redis(Lettuce), PostgreSQL, JWT(jjwt), Gradle 멀티모듈
+
+**Infra(로컬 개발)**: Docker Compose (Kafka - KRaft 단일 브로커, Redis)
+
+**Frontend**: React, TypeScript, Zustand, Axios, @stomp/stompjs + SockJS — 자세한 내용은 [portfolio-front](https://github.com/KSW0927/portfolio-front) 참고
