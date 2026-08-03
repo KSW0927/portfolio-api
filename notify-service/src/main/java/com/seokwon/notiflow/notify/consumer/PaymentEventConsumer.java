@@ -8,10 +8,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.seokwon.notiflow.common.kafka.KafkaTopics;
-import com.seokwon.notiflow.notify.entity.NotificationEntity;
-import com.seokwon.notiflow.notify.event.NotificationPublishedEvent;
+import com.seokwon.notiflow.notify.NotifyEntity;
+import com.seokwon.notiflow.notify.event.NotifyPublishedEvent;
 import com.seokwon.notiflow.notify.event.PaymentConfirmedEvent;
-import com.seokwon.notiflow.notify.repository.NotificationRepository;
+import com.seokwon.notiflow.notify.NotifyRepository;
 
 /**
  * payment-events 토픽을 구독해서 결제 확정 이벤트를 알림으로 변환/저장하고,
@@ -26,7 +26,7 @@ import com.seokwon.notiflow.notify.repository.NotificationRepository;
 @RequiredArgsConstructor
 public class PaymentEventConsumer {
 
-    private final NotificationRepository notificationRepository;
+    private final NotifyRepository notifyRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @KafkaListener(
@@ -36,7 +36,7 @@ public class PaymentEventConsumer {
     public void onPaymentConfirmed(PaymentConfirmedEvent event) {
         String message = "%s %s/%s 결제가 확정되었습니다.".formatted(event.model(), event.storage(), event.color());
 
-        NotificationEntity notification = NotificationEntity.builder()
+        NotifyEntity notify = NotifyEntity.builder()
                 .orderId(event.orderId())
                 .buyerUserNo(event.buyerUserNo())
                 .priority(false)
@@ -46,23 +46,23 @@ public class PaymentEventConsumer {
                 .createdAt(event.confirmedAt())
                 .build();
 
-        notificationRepository.save(notification);
+        notifyRepository.save(notify);
 
         log.debug("결제 확정 알림 저장: orderId={}", event.orderId());
 
-        NotificationPublishedEvent published = new NotificationPublishedEvent(
-                notification.getNotificationId(),
-                notification.getOrderId(),
-                notification.getBuyerUserNo(),
-                notification.isPriority(),
-                notification.getCategory(),
-                notification.getMessage(),
-                notification.getCreatedAt()
+        NotifyPublishedEvent published = new NotifyPublishedEvent(
+                notify.getNotifyId(),
+                notify.getOrderId(),
+                notify.getBuyerUserNo(),
+                notify.isPriority(),
+                notify.getCategory(),
+                notify.getMessage(),
+                notify.getCreatedAt()
         );
-        kafkaTemplate.send(KafkaTopics.NOTIFICATION_EVENTS, String.valueOf(notification.getNotificationId()), published)
+        kafkaTemplate.send(KafkaTopics.NOTIFICATION_EVENTS, String.valueOf(notify.getNotifyId()), published)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
-                        log.error("결제 확정 알림 실시간 발행 실패: notificationId={}", notification.getNotificationId(), ex);
+                        log.error("결제 확정 알림 실시간 발행 실패: notifyId={}", notify.getNotifyId(), ex);
                     }
                 });
     }

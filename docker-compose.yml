@@ -1,7 +1,6 @@
 # 로컬 개발용 인프라(Kafka + Redis) 통합
 # 실행: docker compose up -d
 # 확인: docker compose ps / docker compose logs -f kafka (또는 redis)
-# 주의: 기존에 따로 띄워둔 Redis 컨테이너가 있다면 포트(6379) 충돌 나니 먼저 내려두고 이걸로 올릴 것.
 services:
   kafka:
     image: apache/kafka:3.7.0

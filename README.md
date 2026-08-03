@@ -100,30 +100,48 @@ userauth/
 
 ### order-service — 주문 + 동시성 데모
 
+도메인별로 패키지를 분리했습니다(orders 하위에 order/product/customer/lock/event/config/seed).
+
 ```
-order/
-├── OrderController                        GET /api/orders/products, POST /api/orders,
-│                                           POST /api/orders/reset, POST /api/orders/batch-result
-├── service/OrderService                    주문 처리 + 오버셀 사후 취소 + Kafka 이벤트 발행
-├── service/ProductService                  상품/재고 목록 조회
-├── service/PaymentConfirmationService      결제 확정 처리 전용(타이머가 호출, self-invocation 방지용 분리 빈)
-├── service/DistributedLockService          Redisson 락 획득/해제 실행기(executeWithLock)
-├── entity/ProductEntity                    상품 모델(예: Galaxy Z Flip8)
-├── entity/ProductDetailEntity              실제 판매 단위(SKU) - 용량+색상 조합별 재고. 락 대상
-├── entity/CustomerEntity                   시뮬레이션용 테스트 구매자 풀(2,000명)
-├── entity/OrderEntity                      주문 처리 이력 + 결제상태(paymentStatus/paymentDueAt/paymentConfirmedAt)
-├── entity/OrderStatus                      SUCCESS / OUT_OF_STOCK / CANCELLED
-├── entity/PaymentStatus                    PENDING / COMPLETED / CANCELLED
-├── entity/LockStrategy                     NONE / PESSIMISTIC / DISTRIBUTED
-├── repository/ProductDetailRepository      findByIdForUpdate (PESSIMISTIC_WRITE)
-├── repository/OrderRepository              findRecentSuccessOrders (오버셀 취소 대상 조회, FIFO)
-├── event/OrderPlacedEvent, PaymentConfirmedEvent,
-│         StockIntegrityEvent, PaymentScheduleRequest   Kafka 발행용 + 인프로세스 전용(PaymentScheduleRequest) 이벤트
-├── event/OrderEventPublisher                @TransactionalEventListener(AFTER_COMMIT)로 Kafka 발행 + 타이머 예약
-├── config/RedissonConfig                    분산락용 RedissonClient 빈
-├── config/SchedulingConfig                  결제 확정 타이머용 TaskScheduler 빈
-├── seed/ProductSeeder, TestBuyerSeeder       상품/재고, 테스트 구매자 2,000명 시드
-└── config/SecurityConfig                    상품 목록(GET)만 공개, 나머지는 JWT 인증 필요
+orders/
+├── order/
+│   ├── OrderController                    POST /api/orders, POST /api/orders/reset, POST /api/orders/batch-result
+│   ├── OrderService                        주문 처리 + 오버셀 사후 취소 + Kafka 이벤트 발행
+│   ├── PaymentConfirmationService          결제 확정 처리 전용(타이머가 호출, self-invocation 방지용 분리 빈)
+│   ├── OrderRepository                     findRecentSuccessOrders (오버셀 취소 대상 조회, FIFO)
+│   ├── OrderEntity                         주문 처리 이력 + 결제상태(paymentStatus/paymentDueAt/paymentConfirmedAt)
+│   ├── OrderStatus                         SUCCESS / OUT_OF_STOCK / CANCELLED
+│   ├── PaymentStatus                       PENDING / COMPLETED / CANCELLED
+│   └── dto/OrderRequestDTO, OrderResultDTO, StockIntegrityRequestDTO, OversoldProductDTO
+│
+├── product/
+│   ├── ProductController                   GET /api/products
+│   ├── ProductService                      상품/재고 목록 조회
+│   ├── ProductRepository, ProductDetailRepository      findByIdForUpdate (PESSIMISTIC_WRITE)
+│   ├── ProductEntity                       상품 모델(예: Galaxy Z Flip8)
+│   ├── ProductDetailEntity                 실제 판매 단위(SKU) - 용량+색상 조합별 재고. 락 대상
+│   └── dto/ProductDetailDTO
+│
+├── customer/
+│   ├── CustomerEntity                      시뮬레이션용 테스트 구매자 풀(2,000명)
+│   └── CustomerRepository
+│
+├── lock/
+│   ├── DistributedLockService              Redisson 락 획득/해제 실행기(executeWithLock)
+│   └── LockStrategy                        NONE / PESSIMISTIC / DISTRIBUTED
+│
+├── event/
+│   ├── OrderPlacedEvent, PaymentConfirmedEvent,
+│   │   StockIntegrityEvent, PaymentScheduleRequest   Kafka 발행용 + 인프로세스 전용(PaymentScheduleRequest) 이벤트
+│   └── OrderEventPublisher                 @TransactionalEventListener(AFTER_COMMIT)로 Kafka 발행 + 타이머 예약
+│
+├── config/
+│   ├── RedissonConfig                      분산락용 RedissonClient 빈
+│   ├── SchedulingConfig                    결제 확정 타이머용 TaskScheduler 빈
+│   └── SecurityConfig                      상품 목록(GET /api/products)만 공개, 나머지는 JWT 인증 필요
+│
+└── seed/
+    └── ProductSeeder, TestBuyerSeeder      상품/재고, 테스트 구매자 2,000명 시드
 ```
 
 **락 전략 3종** (`OrderService.placeOrder(detailId, buyerUserNo, lockStrategy)`)
@@ -161,29 +179,33 @@ DB는 `order_db`.
 
 ```
 notify/
+├── NotifyEntity                           notify 테이블(orderId, category, message, isRead, createdAt)
+├── NotifyRepository
 ├── consumer/OrderEventConsumer            order-events 구독 → 알림 문구 생성 → DB 저장 → notification-events 발행
 ├── consumer/PaymentEventConsumer          payment-events 구독 → 결제 확정 알림
 ├── consumer/StockIntegrityEventConsumer   stock-integrity-events 구독 → 오버셀/취소 요약 알림(우선순위 고정)
-├── entity/NotificationEntity              notify 테이블(orderId, category, message, isRead, createdAt)
-├── repository/NotificationRepository
 └── event/
     ├── OrderPlacedEvent, OrderStatus, PaymentConfirmedEvent,
     │     StockIntegrityEvent, OversoldProduct, LockStrategy   order-service 이벤트들의 자체 사본
-    └── NotificationPublishedEvent                              저장 완료된(표시용) 알림 이벤트
+    └── NotifyPublishedEvent                                    저장 완료된(표시용) 알림 이벤트
 ```
+
+entity/repository 폴더는 파일이 1개씩뿐이라 루트로 평탄화했고, 클래스명/필드명도 `Notification*` → `Notify*`, `notificationId` → `notifyId`로 서비스명과 통일했습니다. 이 필드는 realtime-gateway-service의 자체 사본(`gateway/event/NotificationPublishedEvent`)과 프론트 `notificationStore`가 그대로 파싱하는 JSON 계약이라, 세 곳(notify-service/gateway-service/프론트)을 함께 맞췄습니다.
 
 order-service의 이벤트 클래스를 그대로 가져다 쓰지 않고, **필드 구조만 동일한 별도 클래스를 자체적으로 보유**합니다. 서비스 간에 클래스를 공유하면 한쪽이 필드를 바꿀 때 다른 쪽이 컴파일 타임에 깨지지 않고 런타임에 조용히 역직렬화 실패하는 결합이 생기기 때문입니다. Kafka 메시지도 `spring.json.add.type.headers=false`로 producer 클래스의 풀패키지명을 헤더에 싣지 않고, 리스너마다 `spring.json.value.default.type` 프로퍼티를 오버라이드해서(`@KafkaListener(properties = "...")`) 토픽별로 자기 소유 클래스에 고정 매핑합니다 — 컨슈머 팩토리 하나를 4개 토픽(`order-events`/`payment-events`/`stock-integrity-events`/`notification-events`)이 공유하면서도 페이로드 타입이 서로 다른 문제를 이렇게 격리합니다.
 
-DB 저장이 끝나면 같은 메서드 안에서 바로 `notification-events`를 발행합니다(`NotificationRepository.save()`가 Spring Data JPA 자체 트랜잭션으로 즉시 커밋되므로, order-service 때와 달리 별도의 AFTER_COMMIT 처리가 필요 없습니다). DB는 `notify_db`.
+DB 저장이 끝나면 같은 메서드 안에서 바로 `notification-events`를 발행합니다(`NotifyRepository.save()`가 Spring Data JPA 자체 트랜잭션으로 즉시 커밋되므로, order-service 때와 달리 별도의 AFTER_COMMIT 처리가 필요 없습니다). DB는 `notify_db`.
 
 ### realtime-gateway-service — 실시간 브로드캐스트
 
 ```
 gateway/
-├── config/WebSocketConfig               STOMP 엔드포인트(/ws, SockJS) + 메시지 브로커(/topic)
-├── consumer/NotificationEventConsumer   notification-events 구독 → /topic/notifications로 즉시 브로드캐스트
-└── event/NotificationPublishedEvent     notify-service 이벤트의 자체 사본
+├── config/WebSocketConfig          STOMP 엔드포인트(/ws, SockJS) + 메시지 브로커(/topic)
+├── consumer/NotifyEventConsumer    notification-events 구독 → /topic/notifications로 즉시 브로드캐스트
+└── event/NotifyPublishedEvent      notify-service 이벤트의 자체 사본
 ```
+
+이 서비스는 자체 인증 로직이 없어서 `CommonSecurityConfig`(permitAll + CORS)만 쓰고, JWT는 실제로 쓰는 곳이 없어서 `JwtTokenProvider`를 컴포넌트 스캔에서 제외했습니다(그래서 DB/JWT 관련 환경변수가 전혀 필요 없음).
 
 가공/판단 로직 없이 받은 그대로 중계만 합니다. 별도 REST 트리거 대신 **Kafka를 직접 구독**하게 해서 notify-service와 REST로 얽히지 않도록 했고, 둘 중 하나가 잠깐 죽어도 Kafka가 메시지를 들고 있다가 재연결 시 이어받습니다.
 
@@ -199,7 +221,7 @@ gateway/
      - OrderEventPublisher(@TransactionalEventListener AFTER_COMMIT)가 그제서야 Kafka "order-events"로 발행
 4. notify-service: OrderEventConsumer가 order-events 구독
      - 상태(주문/품절/결제취소)에 맞는 알림 문구 생성
-     - NotificationEntity 저장 (notify_db)
+     - NotifyEntity 저장 (notify_db)
      - Kafka "notification-events"로 재발행
 5. realtime-gateway-service: NotificationEventConsumer가 notification-events 구독
      - SimpMessagingTemplate으로 "/topic/notifications" 브로드캐스트

@@ -10,11 +10,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.seokwon.notiflow.common.kafka.KafkaTopics;
-import com.seokwon.notiflow.notify.entity.NotificationEntity;
+import com.seokwon.notiflow.notify.NotifyEntity;
 import com.seokwon.notiflow.notify.event.LockStrategy;
-import com.seokwon.notiflow.notify.event.NotificationPublishedEvent;
+import com.seokwon.notiflow.notify.event.NotifyPublishedEvent;
 import com.seokwon.notiflow.notify.event.StockIntegrityEvent;
-import com.seokwon.notiflow.notify.repository.NotificationRepository;
+import com.seokwon.notiflow.notify.NotifyRepository;
 
 /**
  * stock-integrity-events 토픽을 구독해서 배치 재고 정합성 결과를 알림으로 변환/저장하고,
@@ -31,7 +31,7 @@ import com.seokwon.notiflow.notify.repository.NotificationRepository;
 @RequiredArgsConstructor
 public class StockIntegrityEventConsumer {
 
-    private final NotificationRepository notificationRepository;
+    private final NotifyRepository notifyRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @KafkaListener(
@@ -42,7 +42,7 @@ public class StockIntegrityEventConsumer {
         String message = toMessage(event);
         boolean isOversell = event.lostUnits() != null && event.lostUnits() > 0;
 
-        NotificationEntity notification = NotificationEntity.builder()
+        NotifyEntity notify = NotifyEntity.builder()
                 .orderId(0L)
                 .buyerUserNo(0L)
                 .priority(isOversell)
@@ -52,23 +52,23 @@ public class StockIntegrityEventConsumer {
                 .createdAt(event.occurredAt())
                 .build();
 
-        notificationRepository.save(notification);
+        notifyRepository.save(notify);
 
         log.debug("재고 정합성 알림 저장: lostUnits={}, lockStrategy={}", event.lostUnits(), event.lockStrategy());
 
-        NotificationPublishedEvent published = new NotificationPublishedEvent(
-                notification.getNotificationId(),
-                notification.getOrderId(),
-                notification.getBuyerUserNo(),
-                notification.isPriority(),
-                notification.getCategory(),
-                notification.getMessage(),
-                notification.getCreatedAt()
+        NotifyPublishedEvent published = new NotifyPublishedEvent(
+                notify.getNotifyId(),
+                notify.getOrderId(),
+                notify.getBuyerUserNo(),
+                notify.isPriority(),
+                notify.getCategory(),
+                notify.getMessage(),
+                notify.getCreatedAt()
         );
-        kafkaTemplate.send(KafkaTopics.NOTIFICATION_EVENTS, String.valueOf(notification.getNotificationId()), published)
+        kafkaTemplate.send(KafkaTopics.NOTIFICATION_EVENTS, String.valueOf(notify.getNotifyId()), published)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
-                        log.error("재고 정합성 알림 실시간 발행 실패: notificationId={}", notification.getNotificationId(), ex);
+                        log.error("재고 정합성 알림 실시간 발행 실패: notifyId={}", notify.getNotifyId(), ex);
                     }
                 });
     }
