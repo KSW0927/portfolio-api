@@ -36,6 +36,10 @@ public class RespExcpHandler {
      */
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+        // 이 예외는 회원가입 중복 아이디 케이스를 염두에 두고 만들어진 핸들러라 메시지가 그렇게 고정돼있는데,
+        // 실제로는 PK/FK/NOT NULL 등 DB 제약조건 위반이면 전부 여기로 들어옴. 로그가 없으면 원인 파악이
+        // 불가능해서 실제 원인(SQL 예외 원인 포함)을 남겨둠.
+        log.error("DB 제약조건 위반 예외 발생", ex);
         ApiResponse<Void> response = new ApiResponse<>();
         response.setCode(ResponseResult.ERROR_DUPLICATE.getCode());
         response.setMessage(ResponseResult.ERROR_DUPLICATE.getMessage());
