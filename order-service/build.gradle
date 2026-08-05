@@ -2,6 +2,10 @@ plugins {
 	id 'org.springframework.boot'
 }
 
+tasks.named('jar') {
+	enabled = false
+}
+
 dependencies {
 	implementation project(':common')
 

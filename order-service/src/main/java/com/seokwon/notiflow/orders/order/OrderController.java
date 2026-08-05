@@ -18,7 +18,6 @@ import com.seokwon.notiflow.orders.order.dto.OrderResultDTO;
 import com.seokwon.notiflow.orders.order.dto.StockIntegrityRequestDTO;
 import com.seokwon.notiflow.orders.lock.LockStrategy;
 import com.seokwon.notiflow.orders.lock.DistributedLockService;
-import com.seokwon.notiflow.orders.order.OrderService;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -30,7 +29,7 @@ public class OrderController {
     private final DistributedLockService distributedLockService;
 
     @PostMapping
-    @Operation(summary = "주문 생성", description = "상품 재고를 1개 차감. lockStrategy(기본 PESSIMISTIC)로 NONE/PESSIMISTIC/DISTRIBUTED 중 동시성 제어 방식을 고를 수 있음. NONE은 락 없이 처리해 동시성 이슈(오버셀)를 재현하고, DISTRIBUTED는 Redisson 분산락으로 직렬화함. 재고 부족 시에도 200으로 응답하며 결과에 성공 여부가 담김. 인증된 세션에서만 호출 가능하며, 실제 주문 소유자는 body의 buyerUserNo(테스트 구매자 풀)로 기록됨")
+    @Operation(summary = "주문 생성", description = "주문 생성")
     public ResponseEntity<ApiResponse<OrderResultDTO>> placeOrder(@RequestBody @Valid OrderRequestDTO dto) {
         LockStrategy lockStrategy = dto.getLockStrategy() != null ? dto.getLockStrategy() : LockStrategy.PESSIMISTIC;
 
@@ -58,9 +57,6 @@ public class OrderController {
     @PostMapping("/batch-result")
     @Operation(summary = "배치 재고 정합성 결과 보고", description = "프론트가 시뮬레이션 1회 종료 후 계산한 예상/실제 재고를 Kafka로 발행. 오버셀(lostUnits > 0) 발생 시 notify-service가 우선순위 알림으로 저장/전파함")
     public ResponseEntity<ApiResponse<Void>> reportBatchResult(@RequestBody @Valid StockIntegrityRequestDTO dto) {
-
-        System.out.println("dto >>>>> " + dto);
-
         orderService.reportBatchResult(dto);
         ApiResponse<Void> response = new ApiResponse<>(ResponseResult.SUCCESS_UPDATE, null);
         return ResponseEntity.status(response.getCode()).body(response);
