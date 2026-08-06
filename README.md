@@ -2,7 +2,7 @@
 
 한정 수량 상품에 대량 주문이 몰릴 때 발생하는 **재고 동시성 문제**를 재현하고, 서로 다른 동시성 제어 전략(락 없음 / DB 락 / 분산락)을 실측 비교하기 위해 만든 이벤트 기반 MSA 백엔드입니다. 처리 결과는 Kafka를 거쳐 WebSocket으로 실시간 전달됩니다.
 
-**🔗 [라이브 데모](https://portfolio-front-roan-one.vercel.app) *(Ctrl/Cmd+클릭으로 새 탭에서 열기)*
+**🔗 [라이브 데모](https://portfolio-front-roan-one.vercel.app)** *(Ctrl/Cmd+클릭으로 새 탭에서 열기)*
 
 - 프론트엔드 저장소: [portfolio-front](https://github.com/KSW0927/portfolio-front)
 - API 문서: [order-service Swagger](https://order.168-107-38-121.sslip.io/swagger-ui/index.html) · [user-auth-service Swagger](https://auth.168-107-38-121.sslip.io/swagger-ui/index.html)
