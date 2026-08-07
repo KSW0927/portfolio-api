@@ -16,7 +16,7 @@ import com.seokwon.notiflow.orders.order.OrderRepository;
 
 /**
  * 결제 확정 처리 전용 서비스
- * @description OrderService.placeOrder가 예약해둔 타이머(TaskScheduler)가 지연시간 경과 후 호출한다.
+ * OrderService.placeOrder가 예약해둔 타이머(TaskScheduler)가 지연시간 경과 후 호출한다.
  * OrderService 안에 같이 두지 않고 별도 빈으로 분리한 이유는, 스케줄된 람다가 "같은 빈 안의 다른
  * @Transactional 메서드"를 호출하는 self-invocation 패턴이 되면 프록시가 가로채지 못해 트랜잭션이
  * 아예 안 걸리기 때문(OrderService 내부에서 한 번 겪었던 문제와 동일) - 별도 빈으로 두면 항상

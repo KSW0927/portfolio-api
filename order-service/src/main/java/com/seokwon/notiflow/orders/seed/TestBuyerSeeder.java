@@ -15,7 +15,7 @@ import com.seokwon.notiflow.orders.customer.CustomerRepository;
 
 /**
  * 동시 주문 시뮬레이션용 테스트 구매자(customers) 풀 시딩
- * @description 실제 user-auth-service 로그인 계정과는 별개의 로컬 데이터.
+ * 실제 user-auth-service 로그인 계정과는 별개의 로컬 데이터.
  * "100/500/1000명이 동시에 주문한 것"처럼 보이도록, 프론트에서 주문마다 이 풀 중
  * 하나를 랜덤으로 골라 buyerUserNo로 넘김. 요청 자체의 인증(누가 이 배치를 실행했는지)은
  * JWT로 따로 검증되고, 이 구매자 데이터는 "누구 앞으로 기록할지"만 담당함.

@@ -18,7 +18,7 @@ import com.seokwon.notiflow.orders.product.ProductRepository;
 
 /**
  * 상수 상품 데이터 시딩
- * @description 모델(product) x 용량 x 색상(product_detail) 조합을 애플리케이션 기동 시 한 번만 생성.
+ * 모델(product) x 용량 x 색상(product_detail) 조합을 애플리케이션 기동 시 한 번만 생성.
  * 재고를 일부러 적게(20~60개) 잡아서, 대량 동시 주문 시 일부 조합이 실제로 품절되도록 함(동시성 검증용).
  */
 @Component

@@ -125,7 +125,8 @@ public class OrderService {
                 detail.getColor(),
                 buyer.getUserNo(),
                 success,
-                status
+                status,
+                null // 서버 처리시간은 이 메서드 바깥(OrderController)에서 락 대기시간까지 포함해 측정 후 채워짐
         );
     }
 

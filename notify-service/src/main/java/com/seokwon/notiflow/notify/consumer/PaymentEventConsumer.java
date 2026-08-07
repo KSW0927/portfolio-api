@@ -16,7 +16,7 @@ import com.seokwon.notiflow.notify.NotifyRepository;
 /**
  * payment-events 토픽을 구독해서 결제 확정 이벤트를 알림으로 변환/저장하고,
  * OrderEventConsumer와 동일하게 저장 후 notification-events 토픽으로 재발행한다.
- * @description 이 토픽도 order-events와 페이로드 타입이 다르므로(OrderPlacedEvent vs
+ * 이 토픽도 order-events와 페이로드 타입이 다르므로(OrderPlacedEvent vs
  * PaymentConfirmedEvent), StockIntegrityEventConsumer와 동일하게 리스너 단위로
  * spring.json.value.default.type을 오버라이드해서 격리함.
  * 결제완료는 품절/오버셀처럼 최상단에 고정 노출할 필요는 없는 일반 알림이라 priority=false로 저장.
