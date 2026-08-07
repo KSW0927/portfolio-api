@@ -19,7 +19,7 @@ import com.seokwon.notiflow.notify.NotifyRepository;
 /**
  * stock-integrity-events 토픽을 구독해서 배치 재고 정합성 결과를 알림으로 변환/저장하고,
  * OrderEventConsumer와 동일하게 저장 후 notification-events 토픽으로 재발행한다.
- * @description 이 토픽은 order-events와 페이로드 타입이 다르기 때문에(OrderPlacedEvent vs
+ * 이 토픽은 order-events와 페이로드 타입이 다르기 때문에(OrderPlacedEvent vs
  * StockIntegrityEvent), 컨슈머 팩토리 공용 설정(spring.json.value.default.type=OrderPlacedEvent)을
  * 그대로 쓰면 이 이벤트를 OrderPlacedEvent로 잘못 역직렬화하게 된다. properties 속성으로
  * 이 리스너에서만 default.type을 오버라이드해서 격리함.

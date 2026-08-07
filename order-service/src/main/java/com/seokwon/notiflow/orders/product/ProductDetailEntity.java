@@ -17,7 +17,7 @@ import lombok.Setter;
 
 /**
  * 제품 상세(실제 판매 단위, SKU)
- * @description 모델(ProductEntity) + 용량 + 색상 조합별로 재고를 따로 가지고 있어서,
+ * 모델(ProductEntity) + 용량 + 색상 조합별로 재고를 따로 가지고 있어서,
  * 동시 주문 테스트 시 조합마다 경합/품절 상황이 자연스럽게 분산됨.
  * Pessimistic Lock 대상은 이 엔티티(재고를 실제로 들고 있는 단위)임.
  */

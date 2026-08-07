@@ -9,7 +9,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 /**
  * STOMP over WebSocket 설정
- * @description 프론트는 SockJS로 /ws에 접속해서 "/topic/notifications"를 구독한다.
+ * 프론트는 SockJS로 /ws에 접속해서 "/topic/notifications"를 구독한다.
  * 프론트에서 서버로 보낼 메시지는 아직 없어서(수신 전용) setApplicationDestinationPrefixes는 생략.
  * 허용 origin은 common 모듈 CORS 설정(CommonSecurityConfig)과 동일한 cors.allowed-origin 프로퍼티를 씀.
  */

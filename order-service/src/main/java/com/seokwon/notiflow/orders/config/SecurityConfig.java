@@ -19,7 +19,7 @@ import com.seokwon.notiflow.common.security.jwt.JwtTokenProvider;
 
 /**
  * order-service 전용 Security 설정.
- * @description user-auth-service가 발급한 JWT를 그대로 검증(같은 jwt.secret 공유)해서
+ * user-auth-service가 발급한 JWT를 그대로 검증(같은 jwt.secret 공유)해서
  * "이 요청이 인증된 세션에서 왔는지"만 확인함. 상품 목록 조회는 공개, 주문/초기화는 인증 필요.
  * 공용 CommonSecurityConfig(permitAll) 대신 이 설정을 쓰므로, 컴포넌트 스캔에서
  * CommonSecurityConfig를 제외해야 함(OrderServiceApplication 참고).

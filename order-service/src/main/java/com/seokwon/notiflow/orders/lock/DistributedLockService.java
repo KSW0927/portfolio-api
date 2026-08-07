@@ -15,7 +15,7 @@ import com.seokwon.notiflow.common.response.ResponseResult;
 
 /**
  * Redisson 분산락 실행기
- * @description 락 획득 → 주어진 작업 실행 → 락 해제를 한 곳에서 책임진다.
+ * 락 획득 → 주어진 작업 실행 → 락 해제를 한 곳에서 책임진다.
  * 반드시 트랜잭션(OrderService.placeOrder 등)을 시작하는 호출부보다 "바깥"에서 락을 잡고 있어야 한다.
  * 이 클래스 안에서 대상 트랜잭션 메서드를 직접 호출하지 않고 Supplier로 받아서 실행하는 이유는,
  * 호출하는 쪽(Controller 등)이 프록시를 거쳐 트랜잭션 빈을 넘겨주도록 강제하기 위함 -

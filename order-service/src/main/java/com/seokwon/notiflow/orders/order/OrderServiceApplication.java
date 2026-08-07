@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import com.seokwon.notiflow.common.security.config.CommonSecurityConfig;
 
 /**
- * @description 도메인별 패키지 분리(orders.order/product/customer/lock/...) 이후
+ * 도메인별 패키지 분리(orders.order/product/customer/lock/...) 이후
  * 이 클래스가 orders.order 밑으로 한 단계 더 들어가면서, Spring Boot 기본값(메인 클래스
  * 패키지 기준 하위 스캔)만으로는 형제 패키지(orders.product, orders.customer 등)의
  * @Entity/Repository를 못 찾는다. @EntityScan/@EnableJpaRepositories로 orders 전체를

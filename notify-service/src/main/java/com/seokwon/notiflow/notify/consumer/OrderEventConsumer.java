@@ -17,7 +17,7 @@ import com.seokwon.notiflow.notify.NotifyRepository;
 /**
  * order-events 토픽을 구독해서 주문 이벤트를 알림으로 변환/저장하고, 저장이 끝나면
  * notification-events 토픽으로 다시 발행해서 realtime-gateway-service가 실시간으로 화면에 뿌리게 한다.
- * @description groupId는 application.properties의 spring.kafka.consumer.group-id를 그대로 씀
+ * groupId는 application.properties의 spring.kafka.consumer.group-id를 그대로 씀
  * (notify-service 인스턴스가 여러 개여도 같은 group이면 파티션을 나눠 가지므로 중복 소비 안 됨).
  * repository.save()는 Spring Data JPA가 자체 트랜잭션으로 즉시 커밋하므로(이 메서드 자체는
  * @Transactional이 아님), save 이후 바로 Kafka로 보내도 order-service 때와 같은

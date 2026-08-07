@@ -2,7 +2,7 @@ package com.seokwon.notiflow.notify.event;
 
 /**
  * 주문 처리 결과 상태
- * @description order-service의 OrderStatus와 값이 동일해야 함(계약).
+ * order-service의 OrderStatus와 값이 동일해야 함(계약).
  * 서비스 간 결합을 피하기 위해 클래스를 공유하지 않고 notify-service가 자체적으로 보유.
  */
 public enum OrderStatus {

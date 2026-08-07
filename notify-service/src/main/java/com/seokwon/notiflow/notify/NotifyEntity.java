@@ -16,7 +16,7 @@ import lombok.Setter;
 
 /**
  * 알림 이력
- * @description order-events 토픽으로 들어온 주문 이벤트를 사람이 읽을 수 있는 알림 문구로
+ * order-events 토픽으로 들어온 주문 이벤트를 사람이 읽을 수 있는 알림 문구로
  * 가공해서 저장한 것. 프론트 알림 위젯이 조회/구독하는 대상.
  */
 @Entity

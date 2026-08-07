@@ -23,7 +23,7 @@ import lombok.Setter;
 
 /**
  * 주문 처리 이력
- * @description 재고 차감 성공/품절 여부와 관계없이 시도된 주문을 전부 기록(부하테스트 결과 집계용).
+ * 재고 차감 성공/품절 여부와 관계없이 시도된 주문을 전부 기록(부하테스트 결과 집계용).
  * 구매자(buyer)는 실제 로그인 계정이 아니라 시뮬레이션용 테스트 구매자 풀(CustomerEntity)을 참조함.
  */
 @Entity
@@ -59,7 +59,7 @@ public class OrderEntity {
 
     /**
      * 결제 진행 상태 - 판매(재고 차감 성공) 건에만 값이 채워짐(품절 건은 null)
-     * @description nullable로 둬서, 기존에 이미 쌓여있는 행에 컬럼을 추가할 때
+     * nullable로 둬서, 기존에 이미 쌓여있는 행에 컬럼을 추가할 때
      * ddl-auto=update가 NOT NULL 제약 때문에 실패하는 문제를 피함(이전에 buyer_user_no/priority
      * 컬럼 추가 때 겪었던 것과 동일한 함정).
      */

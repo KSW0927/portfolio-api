@@ -2,7 +2,7 @@ package com.seokwon.notiflow.common.kafka;
 
 /**
  * Kafka 토픽 이름 상수
- * @description Producer(order-service)와 Consumer(notify-service)가
+ * Producer(order-service)와 Consumer(notify-service)가
  * 같은 문자열을 오타 없이 공유하도록 common 모듈에 모아둠.
  */
 public final class KafkaTopics {
