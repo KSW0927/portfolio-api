@@ -1,0 +1,62 @@
+# 앱 서버(오라클 클라우드) 배포용 - 백엔드 4개 서비스
+# 실행 전 같은 폴더에 .env 파일 필요 (.env.prod.example 참고)
+# 실행: docker compose -f docker-compose.prod.yml up -d --build
+services:
+  user-auth-service:
+    build: ./user-auth-service
+    container_name: user-auth-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://${DB_HOST}:5432/user_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: ${INFRA_HOST:-${DB_HOST}}
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN}
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://${DB_HOST}:5432/order_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: ${INFRA_HOST:-${DB_HOST}}
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: ${INFRA_HOST:-${DB_HOST}}:9092
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN}
+
+  notify-service:
+    build: ./notify-service
+    container_name: notify-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://${DB_HOST}:5432/notify_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: ${INFRA_HOST:-${DB_HOST}}:9092
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN}
+
+  realtime-gateway-service:
+    build: ./realtime-gateway-service
+    container_name: realtime-gateway-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      KAFKA_BOOTSTRAP_SERVERS: ${INFRA_HOST:-${DB_HOST}}:9092
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN}
