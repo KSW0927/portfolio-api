@@ -78,9 +78,6 @@ public class OrderEventPublisher {
 
     /**
      * 배치 재고 정합성 결과 발행
-     * 예전엔 이 이벤트에 DB 저장이 없어서 OrderService가 KafkaTemplate로 바로 보냈는데,
-     * 이제 같은 트랜잭션 안에서 오버셀 사후 취소(DB 쓰기)가 같이 일어나므로 다른 이벤트들과 동일하게
-     * AFTER_COMMIT으로 통일해서 dual-write 문제를 피한다.
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onStockIntegrityReported(StockIntegrityEvent event) {

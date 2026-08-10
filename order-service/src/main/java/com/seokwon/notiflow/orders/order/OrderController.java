@@ -33,18 +33,18 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResultDTO>> placeOrder(@RequestBody @Valid OrderRequestDTO dto) {
         LockStrategy lockStrategy = dto.getLockStrategy() != null ? dto.getLockStrategy() : LockStrategy.PESSIMISTIC;
 
-        // 락 획득 대기시간까지 포함해서 재야 락 전략별 처리시간 비교가 의미있어진다(순수 네트워크
-        // 왕복시간은 프론트가 예전에 쓰던 방식이었는데, 락 전략과 무관한 노이즈라 지표로 부적절했음).
         long startNanos = System.nanoTime();
 
-        // DISTRIBUTED는 OrderService.placeOrder(트랜잭션 메서드)를 시작하기 전에 분산락을 먼저 잡아야 한다.
+        // DISTRIBUTED는 OrderService.placeOrder(트랜잭션 메서드)를 시작하기 전에 분산락을 먼저 잡아야 함.
         // 반드시 이 컨트롤러처럼 별도 빈(distributedLockService)이 Supplier로 orderService를 감싸서
         // "프록시를 거쳐" 호출해야 락 해제 시점에 DB 커밋까지 끝난 상태가 보장된다.
-        OrderResultDTO result = lockStrategy == LockStrategy.DISTRIBUTED
-                ? distributedLockService.executeWithLock(
-                        "stock-lock:" + dto.getProductDetailId(),
-                        () -> orderService.placeOrder(dto.getProductDetailId(), dto.getBuyerUserNo(), lockStrategy))
-                : orderService.placeOrder(dto.getProductDetailId(), dto.getBuyerUserNo(), lockStrategy);
+        OrderResultDTO result;
+        if (lockStrategy == LockStrategy.DISTRIBUTED) {
+            result = distributedLockService.executeWithLock("stock-lock:" + dto.getProductDetailId(),
+                    () -> orderService.placeOrder(dto.getProductDetailId(), dto.getBuyerUserNo(), lockStrategy));
+        } else {
+            result = orderService.placeOrder(dto.getProductDetailId(), dto.getBuyerUserNo(), lockStrategy);
+        }
 
         result.setProcessingMs((System.nanoTime() - startNanos) / 1_000_000);
 
