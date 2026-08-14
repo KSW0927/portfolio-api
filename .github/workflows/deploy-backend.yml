@@ -1,0 +1,70 @@
+name: Deploy Backend
+
+# main에 푸시되면(=develop에서 merge된 안정 버전) 자동 빌드 후 배포.
+# 수동으로도 다시 돌릴 수 있게 workflow_dispatch도 열어둠.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 21 설정
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 캐시
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: gradlew 실행 권한 부여
+        run: chmod +x gradlew
+
+      # 여기서 테스트도 같이 돌아감(build 태스크가 test를 포함) - 테스트 실패하면
+      # 이후 배포 스텝은 아예 실행되지 않고 워크플로우가 여기서 멈춤.
+      - name: 4개 서비스 빌드 (테스트 포함)
+        run: >
+          ./gradlew --no-daemon
+          :user-auth-service:build
+          :order-service:build
+          :notify-service:build
+          :realtime-gateway-service:build
+
+      # source의 상대경로(예: order-service/build/libs)가 target 아래 그대로 유지되므로
+      # 기존에 수동으로 scp하던 ~/app/{service}/build/libs/ 구조와 동일하게 전송됨.
+      - name: jar 파일 서버로 전송
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: >-
+            user-auth-service/build/libs/*.jar,
+            order-service/build/libs/*.jar,
+            notify-service/build/libs/*.jar,
+            realtime-gateway-service/build/libs/*.jar
+          target: "~/app"
+
+      - name: 서버에서 재빌드 및 재시작
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/app
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
